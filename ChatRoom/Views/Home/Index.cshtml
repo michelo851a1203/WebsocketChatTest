@@ -1,0 +1,119 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "聊天室範例";
+}
+
+<div id="app">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 d-flex flex-row mb-3">
+                <div>
+                    <input type="text" class="form-control" v-model="myInfo.userName" :readonly="lock" />
+                </div>
+                <div class="ml-3">
+                    <input type="button" class="btn " :class="{'btn-info':!lock,'btn-danger':lock}" v-model="lockName" @@click="lockuser" />
+                </div>
+                <div class="ml-3">
+                    <label class="col-form-label">{{status}}</label>
+                </div>
+            </div>
+            <div class="col-12 border border-secondary rounded overflow-auto" style="height:60vh;">
+                <div class="p-3">
+                    <p v-for="(item,index) in typingText" :class="{'text-right':myInfo.userName == item.userName}" :key="index" v-if="typingText.length > 0">
+                        <span :class="{'text-primary':myInfo.userName != item.userName }">{{myInfo.userName == item.userName ? item.title : `[${myInfo.userName}]`}}</span>: <span :class="{'text-primary':myInfo.userName == item.userName }">{{myInfo.userName == item.userName ? `[${myInfo.userName}]` : item.title}}</span>
+                    </p>
+                </div>
+            </div>
+            <div class="col-10 mt-3">
+                <input type="text" style="min-width:100%" class="form-control" v-model="myInfo.title" placeholder="輸入文字..."/>
+            </div>
+            <div class="col-2 mt-3">
+                <input type="button" class="btn btn-primary ml-auto" value="送出" @@click="sendMessage"/>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            websocketUri: `${location.hostname}:${location.port}@Url.Action("chatRoom")`,
+            status:'',
+            websocket: undefined,
+            userId:'',
+            typingText: [],
+            lock: false,
+            lockName: '鎖定',
+            myInfo: {
+                userName: '',
+                title: ''
+            },
+
+        },
+        created() {
+            const vm = this;
+            if ('WebSocket' in window) {
+                vm.websocket = new WebSocket(vm.websocketUri);
+
+                websocket.onopen = function () {
+                    vm.status = '聊天室狀態 : [連接成功]';
+                }
+
+                websocket.onmessage = function (evt) {
+                    if (evt.data) {
+                        const data = JSON.parse(evt.data);
+                        vm.typingText.push(data);
+                        vm.myInfo.title = '';
+                    }
+                    //console.log(`接收訊息 : ${evt.data}`);
+                }
+
+                websocket.onclose = function () {
+                    console.log('關閉連接');
+                    // 關閉時 Post 紀錄等等
+                }
+
+                websocket.onerror = function (evt) {
+                    vm.status = `錯誤訊息:${evt.data}`;
+                }
+
+                window.onbeforeunload = function () {
+                    websocket.close();
+                }
+            } else {
+                console.log('瀏覽器不支持websocket');
+            }
+        },
+        methods: {
+            sendMessage(evt) {
+                const vm = this;
+                if (vm.myInfo.userName !== '') {
+                    const data = {
+                        userId: vm.userId,
+                        userName: vm.myInfo.userName,
+                        title: vm.myInfo.title,
+                    }
+                    if (websocket) {
+                        const _send = JSON.stringify(data);
+                        websocket.send(_send);
+                    }
+                } else {
+                    alert('輸入使用者');
+                }
+            },
+            lockuser() {
+                const vm = this;
+                vm.lock = !vm.lock;
+                if (vm.lock) {
+                    vm.lockName = '解鎖';
+                } else {
+                    vm.lockName = '鎖定';
+                }
+            }
+        }
+    });
+
+    
+
+</script>
