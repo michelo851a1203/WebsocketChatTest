@@ -1,5 +1,7 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
@@ -26,20 +28,22 @@ namespace ChatRoom.Models
 
                     if (message.Length > 0)
                     {
-                        //Dictionary<string, string> data = JsonConvert.DeserializeObject<Dictionary<string, string>>(message);
+                        Dictionary<string, string> data = JsonConvert.DeserializeObject<Dictionary<string, string>>(message);
 
-                        //// 用來儲存用戶端連結
-                        //if (!ModList.Exists(p => p.userid == data["userid"]))
-                        //{
-                        //    ChatMod _mod = new ChatMod();
-                        //    _mod.socketKey = arg.SecWebSocketKey;
-                        //    _mod.userid = data["userid"];
-                        //    _mod.webst = socket;
-                        //    ModList.Add(_mod);
-                        //}
+                        // 用來儲存用戶端連結
+                        if (!ModList.Exists(p => p.userName == data["userName"]))
+                        {
+                            ChatMod _mod = new ChatMod();
+                            _mod.socketKey = arg.SecWebSocketKey;
+                            _mod.userName = data["userName"];
+                            _mod.webst = socket;
+                            ModList.Add(_mod);
+                        }
 
+                        // 存取紀錄 :
+                        //DBInsert(data["userName"], data["title"]);
                         // 接收到後開始回傳
-                        //string toMessage = "回送資訊";
+
                         string toMessage = message;
                         buffer = new ArraySegment<byte>(Encoding.UTF8.GetBytes(toMessage));
                         await socket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
@@ -56,13 +60,48 @@ namespace ChatRoom.Models
                 }
             }
         }
+
+        public string DBInsert(string Name,string title)
+        {
+
+            string _result = string.Empty;
+            using (clsDB db = new clsDB())
+            {
+                string[] _col = {
+                    "Name",
+                    "title",
+                    "createDate",
+                };
+                string _parmName = string.Empty;
+                string _parmValue = string.Empty;
+                foreach (string item in _col)
+                {
+                    _parmName += $"{item},";
+                    _parmValue += $"@{item},";
+                }
+
+                string table = "table";
+                string _sql = $" insert into {table} (id,{_parmName.TrimEnd(',')}) output inserted.[id] ";
+                _sql += $" select ISNULL(MAX([id]),0) + 1,{_parmValue.TrimEnd(',')} from {table} ";
+
+                List<SqlParameter> _par = new List<SqlParameter>();
+                _par.Add(new SqlParameter("@Name ", Name));
+                _par.Add(new SqlParameter("@title ", title));
+                _par.Add(new SqlParameter("@createDate ", DateTime.Now));
+
+                _result = db.getResult(_sql, _par.ToArray());
+            }
+            return _result;
+        }
+
     }
 
     // 聊天實體模組 : 
     public class ChatMod
     {
         public string socketKey { get; set; }
-        public string userid { get; set; }
+        public string title { get; set; }
+        public string userName { get; set; }
         public WebSocket webst { get; set; }
     }
 }

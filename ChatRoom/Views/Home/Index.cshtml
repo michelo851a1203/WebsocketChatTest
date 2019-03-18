@@ -35,10 +35,11 @@
 </div>
 
 <script>
+
     var app = new Vue({
         el: '#app',
         data: {
-            websocketUri: `${location.hostname}:${location.port}@Url.Action("chatRoom")`,
+            websocketUri: `ws://${location.hostname}:${location.port}@Url.Action("chatRoom")`,
             status:'',
             websocket: undefined,
             userId:'',
@@ -49,37 +50,34 @@
                 userName: '',
                 title: ''
             },
-
         },
         created() {
             const vm = this;
             if ('WebSocket' in window) {
                 vm.websocket = new WebSocket(vm.websocketUri);
 
-                websocket.onopen = function () {
+                vm.websocket.onopen = function () {
                     vm.status = '聊天室狀態 : [連接成功]';
                 }
 
-                websocket.onmessage = function (evt) {
+                vm.websocket.onmessage = function (evt) {
                     if (evt.data) {
                         const data = JSON.parse(evt.data);
                         vm.typingText.push(data);
                         vm.myInfo.title = '';
                     }
-                    //console.log(`接收訊息 : ${evt.data}`);
                 }
 
-                websocket.onclose = function () {
-                    console.log('關閉連接');
-                    // 關閉時 Post 紀錄等等
+                vm.websocket.onclose = function () {
+                    vm.status = '聊天室狀態 : [關閉連接]';
                 }
 
-                websocket.onerror = function (evt) {
+                vm.websocket.onerror = function (evt) {
                     vm.status = `錯誤訊息:${evt.data}`;
                 }
 
                 window.onbeforeunload = function () {
-                    websocket.close();
+                    vm.websocket.close();
                 }
             } else {
                 console.log('瀏覽器不支持websocket');
@@ -88,18 +86,17 @@
         methods: {
             sendMessage(evt) {
                 const vm = this;
-                if (vm.myInfo.userName !== '') {
+                if (vm.myInfo.userName !== '' && vm.lock) {
                     const data = {
-                        userId: vm.userId,
                         userName: vm.myInfo.userName,
                         title: vm.myInfo.title,
                     }
-                    if (websocket) {
+                    if (vm.websocket) {
                         const _send = JSON.stringify(data);
-                        websocket.send(_send);
+                        vm.websocket.send(_send);
                     }
                 } else {
-                    alert('輸入使用者');
+                    alert('要輸入使用者並鎖定使用者');
                 }
             },
             lockuser() {
@@ -109,6 +106,9 @@
                     vm.lockName = '解鎖';
                 } else {
                     vm.lockName = '鎖定';
+                    if (vm.websocket) {
+                        vm.websocket.close();
+                    }
                 }
             }
         }
