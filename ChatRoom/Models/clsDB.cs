@@ -15,12 +15,12 @@ namespace ChatRoom.Models
     public class clsDB : IDisposable
     {
         private SqlConnection objConn;
-        public enum ConnStrNameEnum { Vol, ConnectionString, ConnectionString2, NORTHWND, pageConnect, NTPC_Plan, Firefighting }
+        public enum ConnStrNameEnum { ConnectionString }
 
 
         public clsDB()
         {
-            objConn = new SqlConnection(ConfigurationManager.ConnectionStrings[ConnStrNameEnum.Vol.ToString()].ToString());
+            objConn = new SqlConnection(ConfigurationManager.ConnectionStrings[ConnStrNameEnum.ConnectionString.ToString()].ToString());
         }
 
         public clsDB(ConnStrNameEnum ConnStrName)

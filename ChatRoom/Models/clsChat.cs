@@ -15,6 +15,7 @@ namespace ChatRoom.Models
     public class clsChat
     {
         public static List<ChatMod> ModList = new List<ChatMod>();
+        public static List<Dictionary<string,string>> totchatList = new List<Dictionary<string, string>> ();
         public async Task websockets(AspNetWebSocketContext arg)
         {
             WebSocket socket = arg.WebSocket;
@@ -28,25 +29,38 @@ namespace ChatRoom.Models
 
                     if (message.Length > 0)
                     {
-                        Dictionary<string, string> data = JsonConvert.DeserializeObject<Dictionary<string, string>>(message);
-
-                        // 用來儲存用戶端連結
-                        if (!ModList.Exists(p => p.userName == data["userName"]))
+                        if (message == "getInfo")
                         {
-                            ChatMod _mod = new ChatMod();
-                            _mod.socketKey = arg.SecWebSocketKey;
-                            _mod.userName = data["userName"];
-                            _mod.webst = socket;
-                            ModList.Add(_mod);
+                            string toMessage = JsonConvert.SerializeObject(totchatList);
+                            buffer = new ArraySegment<byte>(Encoding.UTF8.GetBytes(toMessage));
+                            await socket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
                         }
+                        else
+                        {
+                            Dictionary<string, string> data = JsonConvert.DeserializeObject<Dictionary<string, string>>(message);
 
-                        // 存取紀錄 :
-                        //DBInsert(data["userName"], data["title"]);
-                        // 接收到後開始回傳
+                            // 用來儲存用戶端連結
+                            if (!ModList.Exists(p => p.userName == data["userName"]))
+                            {
+                                ChatMod _mod = new ChatMod();
+                                _mod.socketKey = arg.SecWebSocketKey;
+                                _mod.userName = data["userName"];
+                                _mod.webst = socket;
+                                ModList.Add(_mod);
+                            }
+                            // 存取紀錄 :
+                            DBInsert(data["userName"], data["title"]);
+                            // 接收到後開始回傳
 
-                        string toMessage = message;
-                        buffer = new ArraySegment<byte>(Encoding.UTF8.GetBytes(toMessage));
-                        await socket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
+                            Dictionary<string, string> chatData = new Dictionary<string, string>();
+                            chatData["userName"] = data["userName"];
+                            chatData["title"] = data["title"];
+                            totchatList.Add(chatData);
+
+                            string toMessage = JsonConvert.SerializeObject(totchatList);
+                            buffer = new ArraySegment<byte>(Encoding.UTF8.GetBytes(toMessage));
+                            await socket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
+                        }
                     }
                 }
                 else
@@ -63,7 +77,6 @@ namespace ChatRoom.Models
 
         public string DBInsert(string Name,string title)
         {
-
             string _result = string.Empty;
             using (clsDB db = new clsDB())
             {
@@ -80,7 +93,7 @@ namespace ChatRoom.Models
                     _parmValue += $"@{item},";
                 }
 
-                string table = "table";
+                string table = "[chat]";
                 string _sql = $" insert into {table} (id,{_parmName.TrimEnd(',')}) output inserted.[id] ";
                 _sql += $" select ISNULL(MAX([id]),0) + 1,{_parmValue.TrimEnd(',')} from {table} ";
 

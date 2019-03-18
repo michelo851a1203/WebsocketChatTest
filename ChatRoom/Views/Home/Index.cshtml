@@ -20,7 +20,7 @@
             <div class="col-12 border border-secondary rounded overflow-auto" style="height:60vh;">
                 <div class="p-3">
                     <p v-for="(item,index) in typingText" :class="{'text-right':myInfo.userName == item.userName}" :key="index" v-if="typingText.length > 0">
-                        <span :class="{'text-primary':myInfo.userName != item.userName }">{{myInfo.userName == item.userName ? item.title : `[${myInfo.userName}]`}}</span>: <span :class="{'text-primary':myInfo.userName == item.userName }">{{myInfo.userName == item.userName ? `[${myInfo.userName}]` : item.title}}</span>
+                        <span :class="{'text-primary':myInfo.userName != item.userName }">{{myInfo.userName == item.userName ? item.title : `[${item.userName}]`}}</span>: <span :class="{'text-primary':myInfo.userName == item.userName }">{{myInfo.userName == item.userName ? `[${item.userName}]` : item.title}}</span>
                     </p>
                 </div>
             </div>
@@ -35,7 +35,6 @@
 </div>
 
 <script>
-
     var app = new Vue({
         el: '#app',
         data: {
@@ -44,6 +43,7 @@
             websocket: undefined,
             userId:'',
             typingText: [],
+            isSubmit: false,
             lock: false,
             lockName: '鎖定',
             myInfo: {
@@ -58,13 +58,19 @@
 
                 vm.websocket.onopen = function () {
                     vm.status = '聊天室狀態 : [連接成功]';
+                    // 連線成功時要取得聊天室資訊 : 
+                    vm.websocket.send('getInfo');
+                    setInterval(vm.getlastestData, 1000);
                 }
 
                 vm.websocket.onmessage = function (evt) {
                     if (evt.data) {
                         const data = JSON.parse(evt.data);
-                        vm.typingText.push(data);
-                        vm.myInfo.title = '';
+                        vm.typingText = data;
+                        if (vm.isSubmit) {
+                            vm.myInfo.title = '';
+                            vm.isSubmit = false;
+                        }
                     }
                 }
 
@@ -84,7 +90,11 @@
             }
         },
         methods: {
-            sendMessage(evt) {
+            getlastestData() {
+                const vm = this;
+                vm.websocket.send('getInfo');
+            },
+            sendMessage() {
                 const vm = this;
                 if (vm.myInfo.userName !== '' && vm.lock) {
                     const data = {
@@ -92,6 +102,7 @@
                         title: vm.myInfo.title,
                     }
                     if (vm.websocket) {
+                        vm.isSubmit = true;
                         const _send = JSON.stringify(data);
                         vm.websocket.send(_send);
                     }
@@ -111,7 +122,7 @@
                     }
                 }
             }
-        }
+        },
     });
 
     
